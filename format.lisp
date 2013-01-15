@@ -4,6 +4,8 @@
 
 (in-package #:thrace)
 
+(defparameter *local-variable-values* nil)
+
 (defun format-fun-args (stream frame fun)
   (let ((flags '(:key :optional :rest)))
 
@@ -19,7 +21,9 @@
              (format-var (this)
                (let ((name (debug-var-symbol-name this))
                      (value (debug-var-value this frame)))
-                 (format stream ":~a ~s " name value)))
+                 (if *local-variable-values*
+                     (format stream ":~a ~s " name value)
+                     (format stream "~a " name))))
              (format-flag (this)
                (format stream "&~a " (symbol-name this)))
 
@@ -43,16 +47,18 @@
          (line-position (find-line-position 0 frame))
          (fun (frame-debug-fun frame))
          (fun-name (debug-fun-name fun)))
-    (format stream "~&#~d :: ~a" index file-path)
+    (format stream "~&~d :: ~a" index file-path)
     (when line-position
       (format stream " :: ~a" line-position))
     (format stream "~&<( ~a " fun-name)
     (format-fun-args stream frame fun)
-    (format stream ")>~%")))
+    (format stream ")>~&")
+    t))
 
-(defun format-backtrace (stream stack &key local-variable-values)
+(defun format-backtrace (stream stack
+                         &key (local-variable-values *local-variable-values*))
   "@TODO: like in SLDB, with references to files and line numbers"
-  (declare (ignorable local-variable-values))
-  (mapcar (lambda (frame)
-            (format-frame stream frame))
-          stack))
+  (let ((*local-variable-values* local-variable-values))
+    (mapcar (lambda (frame)
+              (format-frame stream frame))
+            stack)))
